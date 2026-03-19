@@ -1,0 +1,41 @@
+-- receptionist_db_schema.sql
+
+CREATE DATABASE IF NOT EXISTS receptionist_db;
+USE receptionist_db;
+
+-- -------------------------------------------------------
+-- NOTE: Time slots are 30-minute intervals 09:00–16:30
+-- (09:00, 09:30, 10:00 ... 16:30) — 17 slots per doctor per day.
+-- Working hours not specified in project description;
+-- this is the minimal default to make the slot system functional.
+-- -------------------------------------------------------
+
+CREATE TABLE doctors (
+  id   INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  phone VARCHAR(20)  NOT NULL
+);
+
+CREATE TABLE patients (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  name         VARCHAR(100) NOT NULL,
+  phone        VARCHAR(20)  NOT NULL,
+  subscription ENUM('basic','premium') NOT NULL DEFAULT 'basic'
+);
+
+CREATE TABLE appointments (
+  id               INT AUTO_INCREMENT PRIMARY KEY,
+  doctor_id        INT  NOT NULL,
+  patient_id       INT  NOT NULL,
+  appointment_date DATE NOT NULL,
+  appointment_time TIME NOT NULL,
+  status           ENUM('booked','visited','skipped') NOT NULL DEFAULT 'booked',
+  created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (doctor_id)  REFERENCES doctors(id),
+  FOREIGN KEY (patient_id) REFERENCES patients(id)
+);
+
+-- Sample seed data
+INSERT INTO doctors (name, phone) VALUES
+  ('Dr. Sharma', '+911234567890'),
+  ('Dr. Patel',  '+911234567891');
