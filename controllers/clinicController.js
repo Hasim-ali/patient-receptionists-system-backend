@@ -1,0 +1,129 @@
+// controllers/clinicController.js
+const db = require('../db');
+
+// ── GET /api/clinics ───────────────────────────────────────────────────────────
+// super_admin: returns all non-deleted clinics (or one if ?clinic_id= passed)
+// others:      returns only their own clinic
+async function getClinics(req, res) {
+  try {
+    let sql    = 'SELECT * FROM clinics WHERE deleted_at IS NULL';
+    const params = [];
+
+    if (req.scopedClinicId) {
+      sql += ' AND id = ?';
+      params.push(req.scopedClinicId);
+    }
+    sql += ' ORDER BY id ASC';
+
+    const [rows] = await db.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// ── GET /api/clinics/:id ──────────────────────────────────────────────────────
+async function getClinicById(req, res) {
+  const { id } = req.params;
+
+  // Non-super_admin can only read their own clinic
+  if (req.user.role !== 'super_admin' && parseInt(id) !== req.user.clinic_id) {
+    return res.status(403).json({ error: 'Access denied: you can only view your own clinic' });
+  }
+
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM clinics WHERE id = ? AND deleted_at IS NULL', [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Clinic not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// ── POST /api/clinics ──────────────────────────────────────────────────────────
+// super_admin only
+async function createClinic(req, res) {
+  const { name, address, phone, email, plan } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+
+  const validPlans = ['free', 'basic', 'premium'];
+  if (plan && !validPlans.includes(plan)) {
+    return res.status(400).json({ error: `plan must be one of: ${validPlans.join(', ')}` });
+  }
+
+  try {
+    const [result] = await db.query(
+      `INSERT INTO clinics (name, address, phone, email, plan, created_by)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, address || null, phone || null, email || null, plan || 'free', req.user.id]
+    );
+    const [clinic] = await db.query('SELECT * FROM clinics WHERE id = ?', [result.insertId]);
+    return res.status(201).json(clinic[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// ── PATCH /api/clinics/:id ─────────────────────────────────────────────────────
+// super_admin only — partial update
+async function updateClinic(req, res) {
+  const { id } = req.params;
+  const { name, address, phone, email, plan } = req.body;
+
+  const validPlans = ['free', 'basic', 'premium'];
+  if (plan && !validPlans.includes(plan)) {
+    return res.status(400).json({ error: `plan must be one of: ${validPlans.join(', ')}` });
+  }
+
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM clinics WHERE id = ? AND deleted_at IS NULL', [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Clinic not found' });
+
+    const c = rows[0];
+    await db.query(
+      `UPDATE clinics
+       SET name=?, address=?, phone=?, email=?, plan=?, updated_by=?
+       WHERE id=?`,
+      [
+        name    ?? c.name,
+        address ?? c.address,
+        phone   ?? c.phone,
+        email   ?? c.email,
+        plan    ?? c.plan,
+        req.user.id,
+        id
+      ]
+    );
+
+    const [updated] = await db.query('SELECT * FROM clinics WHERE id = ?', [id]);
+    res.json(updated[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// ── DELETE /api/clinics/:id ────────────────────────────────────────────────────
+// super_admin only — soft delete
+async function deleteClinic(req, res) {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM clinics WHERE id = ? AND deleted_at IS NULL', [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Clinic not found' });
+
+    await db.query(
+      'UPDATE clinics SET deleted_at = NOW(), deleted_by = ? WHERE id = ?',
+      [req.user.id, id]
+    );
+    res.json({ message: 'Clinic soft-deleted successfully', id: parseInt(id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getClinics, getClinicById, createClinic, updateClinic, deleteClinic };
