@@ -1,5 +1,5 @@
 // controllers/appointmentController.js
-const db  = require('../db');
+const db = require('../db');
 const { sendWhatsAppMessage } = require('../utils/whatsapp');
 
 // ── Helper: find first free 30-min slot for a doctor on a given date ──────────
@@ -10,7 +10,7 @@ const { sendWhatsAppMessage } = require('../utils/whatsapp');
 //      → if record exists for that day, slots generated from those hours
 //      → if no record, default hours 09:00–16:30 are used
 async function findFreeSlot(doctorId, date) {
-  const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   // Parse date string safely (avoid timezone shift from `new Date(date)`)
   const dayOfWeek = DAY_NAMES[new Date(`${date}T00:00:00`).getDay()];
 
@@ -38,14 +38,14 @@ async function findFreeSlot(doctorId, date) {
   let startH = 9, startM = 0, endH = 16, endM = 30; // Default hours
   if (avail.length > 0) {
     [startH, startM] = avail[0].start_time.split(':').map(Number);
-    [endH,   endM]   = avail[0].end_time.split(':').map(Number);
+    [endH, endM] = avail[0].end_time.split(':').map(Number);
   }
 
   // ── 3. Generate all 30-min slots within working hours ─────────────────────
   const allSlots = [];
   let h = startH, m = startM;
   while (h < endH || (h === endH && m <= endM)) {
-    allSlots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+    allSlots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
     m += 30;
     if (m >= 60) { m -= 60; h++; }
   }
@@ -85,7 +85,7 @@ async function bookAppointment(req, res) {
     );
     if (patients.length === 0) return res.status(404).json({ error: 'Patient not found' });
 
-    const doctor  = doctors[0];
+    const doctor = doctors[0];
     const patient = patients[0];
 
     // Scope: patient and doctor must belong to the same clinic
@@ -114,19 +114,19 @@ async function bookAppointment(req, res) {
     // WhatsApp confirmation (gated by clinic plan)
     const msg =
       `Hello ${patient.name}, your appointment has been booked with ${doctor.name} ` +
-      `on ${appointment_date} at ${freeSlot.slice(0,5)}. Please be on time.`;
+      `on ${appointment_date} at ${freeSlot.slice(0, 5)}. Please be on time.`;
     await sendWhatsAppMessage(patient.phone, msg, doctor.clinic_plan, 'confirmation');
 
     return res.status(200).json({
       message: 'Appointment booked successfully',
       appointment: {
-        id:               result.insertId,
-        clinic_id:        doctor.clinic_id,
-        doctor_name:      doctor.name,
-        patient_name:     patient.name,
+        id: result.insertId,
+        clinic_id: doctor.clinic_id,
+        doctor_name: doctor.name,
+        patient_name: patient.name,
         appointment_date,
         appointment_time: freeSlot,
-        status:           'booked'
+        status: 'booked'
       }
     });
   } catch (err) {
@@ -200,7 +200,7 @@ async function rescheduleConfirm(req, res) {
     nextDate.setDate(nextDate.getDate() + 1);
 
     for (let i = 0; i < 30; i++) {
-      const dateStr  = nextDate.toISOString().split('T')[0];
+      const dateStr = nextDate.toISOString().split('T')[0];
       const freeSlot = await findFreeSlot(appt.doctor_id, dateStr);
 
       if (freeSlot) {
@@ -212,18 +212,18 @@ async function rescheduleConfirm(req, res) {
 
         const msg =
           `Hello ${appt.patient_name}, your rescheduled appointment is confirmed with ` +
-          `${appt.doctor_name} on ${dateStr} at ${freeSlot.slice(0,5)}.`;
+          `${appt.doctor_name} on ${dateStr} at ${freeSlot.slice(0, 5)}.`;
         await sendWhatsAppMessage(appt.patient_phone, msg, appt.clinic_plan, 'reschedule');
 
         return res.status(200).json({
           message: 'Appointment rescheduled successfully',
           appointment: {
-            id:               result.insertId,
-            doctor_name:      appt.doctor_name,
-            patient_name:     appt.patient_name,
+            id: result.insertId,
+            doctor_name: appt.doctor_name,
+            patient_name: appt.patient_name,
             appointment_date: dateStr,
             appointment_time: freeSlot,
-            status:           'booked'
+            status: 'booked'
           }
         });
       }
@@ -262,7 +262,7 @@ async function getAppointments(req, res) {
     sql += ' ORDER BY a.appointment_date DESC, a.appointment_time ASC';
 
     const [rows] = await db.query(sql, params);
-    res.json(rows);
+    res.json({ status: 0, success: true, data: rows, message: "Successfuly" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

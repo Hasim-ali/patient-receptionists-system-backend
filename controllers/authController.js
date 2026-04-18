@@ -32,6 +32,20 @@ async function login(req, res) {
       { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
     );
 
+    // Save session token in DB so we can validate/revoke later
+    try {
+      const decoded = jwt.decode(token);
+      const expiresAt = decoded && decoded.exp ? new Date(decoded.exp * 1000) : null;
+      const expiresAtSql = expiresAt ? expiresAt.toISOString().slice(0,19).replace('T',' ') : null;
+      await db.query(
+        'INSERT INTO sessions (user_id, token, expires_at) VALUES (?, ?, ?)',
+        [user.id, token, expiresAtSql]
+      );
+    } catch (e) {
+      console.error('Failed to save session:', e.message || e);
+      // don't block login if session save fails; still return token
+    }
+
     return res.status(200).json({
       token,
       user: {

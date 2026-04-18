@@ -6,7 +6,7 @@ const db = require('../db');
 // others:      returns only their own clinic
 async function getClinics(req, res) {
   try {
-    let sql    = 'SELECT * FROM clinics WHERE deleted_at IS NULL';
+    let sql = 'SELECT * FROM clinics WHERE deleted_at IS NULL';
     const params = [];
 
     if (req.scopedClinicId) {
@@ -16,7 +16,7 @@ async function getClinics(req, res) {
     sql += ' ORDER BY id ASC';
 
     const [rows] = await db.query(sql, params);
-    res.json(rows);
+    res.json({ status: 0, success: true, data: rows, message: "Saved Successfuly" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -36,7 +36,7 @@ async function getClinicById(req, res) {
       'SELECT * FROM clinics WHERE id = ? AND deleted_at IS NULL', [id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Clinic not found' });
-    res.json(rows[0]);
+    res.json({ status: 0, success: true, data: rows[0], message: "Saved Successfuly" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -89,18 +89,18 @@ async function updateClinic(req, res) {
        SET name=?, address=?, phone=?, email=?, plan=?, updated_by=?
        WHERE id=?`,
       [
-        name    ?? c.name,
+        name ?? c.name,
         address ?? c.address,
-        phone   ?? c.phone,
-        email   ?? c.email,
-        plan    ?? c.plan,
+        phone ?? c.phone,
+        email ?? c.email,
+        plan ?? c.plan,
         req.user.id,
         id
       ]
     );
 
     const [updated] = await db.query('SELECT * FROM clinics WHERE id = ?', [id]);
-    res.json(updated[0]);
+    res.json({ status: 0, success: true, data: updated[0], message: "Update Successfuly" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

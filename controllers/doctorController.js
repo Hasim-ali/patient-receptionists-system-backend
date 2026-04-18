@@ -31,7 +31,7 @@ async function getDoctors(req, res) {
     sql += ' ORDER BY d.id ASC';
 
     const [rows] = await db.query(sql, params);
-    res.json(rows);
+    res.json({ status: 0, success: true, data: rows, message: "Successfuly" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -73,7 +73,7 @@ async function lookupDoctors(req, res) {
     sql += ' ORDER BY d.name ASC';
 
     const [rows] = await db.query(sql, params);
-    res.json(rows);
+    res.json({ status: 0, success: true, data: rows, message: "Successfuly" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -96,7 +96,8 @@ async function getDoctorById(req, res) {
     if (req.scopedClinicId && rows[0].clinic_id !== req.scopedClinicId) {
       return res.status(403).json({ error: 'Access denied: doctor belongs to a different clinic' });
     }
-    res.json(rows[0]);
+    res.json({ status: 0, success: true, data: rows[0], message: "Successfuly" });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -185,12 +186,12 @@ async function updateDoctor(req, res) {
           bio=?, available_days=?, updated_by=?
       WHERE id=?
     `, [
-      name           ?? d.name,
-      phone          ?? d.phone,
-      email          ?? d.email,
+      name ?? d.name,
+      phone ?? d.phone,
+      email ?? d.email,
       specialization ?? d.specialization,
-      qualification  ?? d.qualification,
-      bio            ?? d.bio,
+      qualification ?? d.qualification,
+      bio ?? d.bio,
       available_days ?? d.available_days,
       req.user.id,
       id
@@ -218,7 +219,8 @@ async function updateDoctor(req, res) {
       FROM doctors d JOIN clinics c ON d.clinic_id = c.id WHERE d.id = ?
     `, [id]);
 
-    res.json(updated[0]);
+    res.json({ status: 0, success: true, data: updated[0], message: "Update Successfuly" });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

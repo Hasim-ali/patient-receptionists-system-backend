@@ -1,11 +1,12 @@
 // middleware/auth.js — JWT authentication + role authorization + clinic scoping
 
 const jwt = require('jsonwebtoken');
+const db = require('../db');
 
 // ── 1. authenticate ────────────────────────────────────────────────────────────
 // Verifies Bearer token. Attaches decoded payload to req.user.
 // Payload shape: { id, name, role, clinic_id }
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Authorization header missing or malformed. Expected: Bearer <token>' });
@@ -13,10 +14,25 @@ function authenticate(req, res, next) {
 
   const token = authHeader.slice(7); // strip "Bearer "
   try {
+    // verify signature and expiration
     req.user = jwt.verify(token, process.env.JWT_SECRET);
+
+    // ensure session exists and is not revoked/expired in DB
+    // console.log(token.slice(7),"row")
+    const [rows] = await db.query(
+      'SELECT * FROM sessions WHERE token = ? AND revoked_at IS NULL',
+      [token]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(401).json({ error: 'Session not found or revoked' });
+    }
+    const sess = rows[0];
+    if (sess.expires_at && new Date(sess.expires_at) <= new Date()) {
+      return res.status(401).json({ error: 'Session expired' });
+    }
+
     next();
   } catch (err) {
-    console.log(err,"err")
     const msg = err.name === 'TokenExpiredError' ? 'Token expired' : 'Invalid token';
     return res.status(401).json({ error: msg });
   }
