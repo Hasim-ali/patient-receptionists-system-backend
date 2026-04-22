@@ -50,22 +50,19 @@ async function getPatientById(req, res) {
 
 // ── POST /api/patients ─────────────────────────────────────────────────────────
 // If patient with same phone already exists in the clinic → return existing (idempotent).
-// Body: { name, phone, subscription, clinic_id? }
+// Body: { name, phone, clinic_id? }
 async function createOrGetPatient(req, res) {
-  const { name, phone, subscription } = req.body;
+  const { name, phone } = req.body;  // ← subscription removed
 
   const effectiveClinicId = (req.user.role === 'super_admin')
     ? req.body.clinic_id
     : req.user.clinic_id;
 
-  if (!name || !phone || !subscription) {
-    return res.status(400).json({ error: 'name, phone, and subscription are required' });
+  if (!name || !phone) {  // ← subscription removed from required check
+    return res.status(400).json({ error: 'name and phone are required' });
   }
   if (!effectiveClinicId) {
     return res.status(400).json({ error: 'clinic_id is required (super_admin must supply it in body)' });
-  }
-  if (!['basic', 'premium'].includes(subscription)) {
-    return res.status(400).json({ error: 'subscription must be basic or premium' });
   }
 
   try {
@@ -79,8 +76,8 @@ async function createOrGetPatient(req, res) {
     }
 
     const [result] = await db.query(
-      'INSERT INTO patients (clinic_id, name, phone, subscription, created_by) VALUES (?, ?, ?, ?, ?)',
-      [effectiveClinicId, name, phone, subscription, req.user.id]
+      'INSERT INTO patients (clinic_id, name, phone, created_by) VALUES (?, ?, ?, ?)',  // ← subscription removed
+      [effectiveClinicId, name, phone, req.user.id]
     );
     const [newPatient] = await db.query('SELECT * FROM patients WHERE id = ?', [result.insertId]);
     return res.status(201).json({ patient: newPatient[0], created: true });
@@ -93,11 +90,7 @@ async function createOrGetPatient(req, res) {
 // clinic_admin and above only
 async function updatePatient(req, res) {
   const { id } = req.params;
-  const { name, phone, subscription } = req.body;
-
-  if (subscription && !['basic', 'premium'].includes(subscription)) {
-    return res.status(400).json({ error: 'subscription must be basic or premium' });
-  }
+  const { name, phone } = req.body;  // ← subscription removed
 
   try {
     const [rows] = await db.query(
@@ -111,8 +104,8 @@ async function updatePatient(req, res) {
 
     const p = rows[0];
     await db.query(
-      'UPDATE patients SET name=?, phone=?, subscription=?, updated_by=? WHERE id=?',
-      [name ?? p.name, phone ?? p.phone, subscription ?? p.subscription, req.user.id, id]
+      'UPDATE patients SET name=?, phone=?, updated_by=? WHERE id=?',  // ← subscription removed
+      [name ?? p.name, phone ?? p.phone, req.user.id, id]
     );
 
     const [updated] = await db.query('SELECT * FROM patients WHERE id = ?', [id]);

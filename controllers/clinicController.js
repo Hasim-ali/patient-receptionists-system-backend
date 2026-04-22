@@ -1,6 +1,9 @@
 // controllers/clinicController.js
 const db = require('../db');
 
+const VALID_PLANS = ['free', 'basic', 'premium'];
+const VALID_SUBSCRIPTIONS = ['basic', 'premium'];  // ← new constant
+
 // ── GET /api/clinics ───────────────────────────────────────────────────────────
 // super_admin: returns all non-deleted clinics (or one if ?clinic_id= passed)
 // others:      returns only their own clinic
@@ -45,19 +48,23 @@ async function getClinicById(req, res) {
 // ── POST /api/clinics ──────────────────────────────────────────────────────────
 // super_admin only
 async function createClinic(req, res) {
-  const { name, address, phone, email, plan } = req.body;
+  const { name, address, phone, email, plan, subscription } = req.body;  // ← subscription added
+
   if (!name) return res.status(400).json({ error: 'name is required' });
 
-  const validPlans = ['free', 'basic', 'premium'];
-  if (plan && !validPlans.includes(plan)) {
-    return res.status(400).json({ error: `plan must be one of: ${validPlans.join(', ')}` });
+  if (plan && !VALID_PLANS.includes(plan)) {
+    return res.status(400).json({ error: `plan must be one of: ${VALID_PLANS.join(', ')}` });
+  }
+  // ↓ subscription validation
+  if (subscription && !VALID_SUBSCRIPTIONS.includes(subscription)) {
+    return res.status(400).json({ error: `subscription must be one of: ${VALID_SUBSCRIPTIONS.join(', ')}` });
   }
 
   try {
     const [result] = await db.query(
-      `INSERT INTO clinics (name, address, phone, email, plan, created_by)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, address || null, phone || null, email || null, plan || 'free', req.user.id]
+      `INSERT INTO clinics (name, address, phone, email, plan, subscription, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,  // ← subscription added
+      [name, address || null, phone || null, email || null, plan || 'free', subscription || 'basic', req.user.id]
     );
     const [clinic] = await db.query('SELECT * FROM clinics WHERE id = ?', [result.insertId]);
     return res.status(201).json(clinic[0]);
@@ -70,11 +77,14 @@ async function createClinic(req, res) {
 // super_admin only — partial update
 async function updateClinic(req, res) {
   const { id } = req.params;
-  const { name, address, phone, email, plan } = req.body;
+  const { name, address, phone, email, plan, subscription } = req.body;  // ← subscription added
 
-  const validPlans = ['free', 'basic', 'premium'];
-  if (plan && !validPlans.includes(plan)) {
-    return res.status(400).json({ error: `plan must be one of: ${validPlans.join(', ')}` });
+  if (plan && !VALID_PLANS.includes(plan)) {
+    return res.status(400).json({ error: `plan must be one of: ${VALID_PLANS.join(', ')}` });
+  }
+  // ↓ subscription validation
+  if (subscription && !VALID_SUBSCRIPTIONS.includes(subscription)) {
+    return res.status(400).json({ error: `subscription must be one of: ${VALID_SUBSCRIPTIONS.join(', ')}` });
   }
 
   try {
@@ -86,14 +96,15 @@ async function updateClinic(req, res) {
     const c = rows[0];
     await db.query(
       `UPDATE clinics
-       SET name=?, address=?, phone=?, email=?, plan=?, updated_by=?
-       WHERE id=?`,
+       SET name=?, address=?, phone=?, email=?, plan=?, subscription=?, updated_by=?
+       WHERE id=?`,  // ← subscription added
       [
-        name ?? c.name,
-        address ?? c.address,
-        phone ?? c.phone,
-        email ?? c.email,
-        plan ?? c.plan,
+        name         ?? c.name,
+        address      ?? c.address,
+        phone        ?? c.phone,
+        email        ?? c.email,
+        plan         ?? c.plan,
+        subscription ?? c.subscription,  // ← subscription added
         req.user.id,
         id
       ]

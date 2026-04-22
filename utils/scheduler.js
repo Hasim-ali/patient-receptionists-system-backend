@@ -5,7 +5,7 @@
 //               only if their clinic plan is premium
 
 const cron = require('node-cron');
-const db   = require('../db');
+const db = require('../db');
 const { sendWhatsAppMessage } = require('./whatsapp');
 
 function startScheduler() {
@@ -70,9 +70,9 @@ function startScheduler() {
           a.clinic_id,
           p.name         AS patient_name,
           p.phone        AS patient_phone,
-          p.subscription AS patient_sub,
           d.name         AS doctor_name,
-          c.plan         AS clinic_plan
+          c.plan         AS clinic_plan,
+          c.subscription AS clinic_sub    -- ← moved from p.subscription to c.subscription
         FROM appointments a
         JOIN patients p ON a.patient_id = p.id
         JOIN doctors  d ON a.doctor_id  = d.id
@@ -93,9 +93,9 @@ function startScheduler() {
         );
         console.log(`[CRON] appt#${appt.id} marked skipped`);
 
-        // 2. Send reschedule offer only to premium patients at premium/basic clinics
+        // 2. Send reschedule offer only to premium clinics
         //    (free clinics get no WhatsApp at all)
-        if (appt.patient_sub === 'premium') {
+        if (appt.clinic_sub === 'premium') {   // ← appt.patient_sub → appt.clinic_sub
           const msg =
             `Hello ${appt.patient_name}, you missed your appointment with ${appt.doctor_name} ` +
             `on ${appt.appointment_date} at ${appt.appt_time}. ` +
