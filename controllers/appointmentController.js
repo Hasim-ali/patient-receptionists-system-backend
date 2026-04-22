@@ -242,7 +242,7 @@ async function getAppointments(req, res) {
     let sql = `
       SELECT
         a.id, a.appointment_date, a.appointment_time, a.status, a.created_at,
-        p.id AS patient_id, p.name AS patient_name, p.phone AS patient_phone, p.subscription,
+        p.id AS patient_id, p.name AS patient_name, p.phone AS patient_phone, c.subscription,
         d.id AS doctor_id,  d.name AS doctor_name,
         c.id AS clinic_id,  c.name AS clinic_name,  c.plan AS clinic_plan
       FROM appointments a
